@@ -17,8 +17,6 @@ data Player = Player{name::String, ships::[Ship], shotsFired:: [Coordinate], boa
 -- не уверена, статус игры?
 data GameState = GameState{currentPlayer:: Player, player1 :: Player, player2 :: Player}
 
-data Game = Game {board1 :: Board, board2 :: Board}
-
 --конец игры
 gameOver :: Player -> Player->Bool
 gameOver p1 p2 = hasLost p1 || hasLost p2
@@ -77,19 +75,14 @@ isBlockShotAt b (x,y) | block == Hit || block == Miss = True
                       | otherwise = False
              where block = getBlock b (x,y)
 
---лист попаданий
 listHits :: Board -> [Coordinate]
-listHits b = listCoordsOfBlocks b Hit
+listHits b = listCoordOfBlocks b Hit
 
---лист неизвестности, уууууу
 listUnexplored :: Board -> [Coordinate]
-listUnexplored b = listCoordsOfBlocks b Water
+listUnexplored b = listCoordOfBlocks b Water
         ++ listCoordsOfBlocks b ShipPart
         ++ listCoordsOfBlocks b Swell
 
---проверить валидность координат
 isValid :: Coordinate -> Bool
 isValid (x,y) | x > 0 && x<=9 && y > 0 && y<=9 = True
               | otherwise = False
-
-listCoordsOfBlocks :: Board -> Block -> [Coordinate]

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a9adcef4991a9f97af7b1c5fbe67dc6644160e93ae36ed26ea081658a84372ad
+-- hash: 5f19f9a5cecea91111abf95d62d0a6c60049621133e8c353f4fe300cafc8f07e
 
 name:           battleship
 version:        0.1.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Types.Game
   other-modules:
       Paths_battleship
   hs-source-dirs:
