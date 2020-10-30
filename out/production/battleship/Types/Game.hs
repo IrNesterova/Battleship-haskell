@@ -15,7 +15,9 @@ data Board = Board {rows :: [[Block]]} deriving (Show)
 data Player = Player{name::String, ships::[Ship], shotsFired:: [Coordinate], board :: Board} deriving (Show)
 
 -- не уверена, статус игры?
-data GameState = GameState{currentPlayer:: Player, player1 :: Player, player2 :: Player}
+data GameState = GameState{currentPlayer:: Int, player1 :: Player, player2 :: Player}
+
+data Game = Game {board1 :: Board, board2 :: Board}
 
 --конец игры
 gameOver :: Player -> Player->Bool
@@ -75,14 +77,40 @@ isBlockShotAt b (x,y) | block == Hit || block == Miss = True
                       | otherwise = False
              where block = getBlock b (x,y)
 
+--лист попаданий
 listHits :: Board -> [Coordinate]
-listHits b = listCoordOfBlocks b Hit
+listHits b = listCoordsOfBlocks b Hit
 
+--лист неизвестности, на самом деле просто пустые клетки
 listUnexplored :: Board -> [Coordinate]
-listUnexplored b = listCoordOfBlocks b Water
+listUnexplored b = listCoordsOfBlocks b Water
         ++ listCoordsOfBlocks b ShipPart
         ++ listCoordsOfBlocks b Swell
 
+--проверить валидность координат
 isValid :: Coordinate -> Bool
 isValid (x,y) | x > 0 && x<=9 && y > 0 && y<=9 = True
               | otherwise = False
+
+listCoordsOfBlocks :: Board -> Block -> [Coordinate]
+listCoordsOfBlocks (Board board) = listCoor' 0 board
+  where listCoor' :: Int -> [[Block]] -> Block -> [Coordinate]
+        listCoor' _ [] b = []
+        listCoor' y (row:rows) b = listCoor'' 0 y row b ++ listCoor' (y+1) rows b
+        listCoor'' :: Int -> Int -> [Block] -> Block -> [Coordinate]
+        listCoor'' _ _ [] b = []
+        listCoor'' x y (block:row) b | block ==b = (x,y) : listCoor'' (x+1) y row b
+                                     | otherwise = listCoor'' (x+1) y row b
+
+listNeighbours :: Board -> Coordinate -> [(Coordinate, Block)]
+listNeighbours b (x,y) = getBlockIfValid b (x+1, y)
+                       ++ getBlockIfValid b (x-1, y)
+                       ++ getBlockifValid b (x, y+1)
+                       ++ getBlockIfValid b (x, y-1)
+--валидный блок
+getBlockIfValid :: Board -> Coordinate -> [(Coordinate, Block)]
+getBlockIfValid b (x,y) | isValid (x,y) = [((x,y), getBlock b (x,y))]
+                        | otherwise = []
+
+
+
