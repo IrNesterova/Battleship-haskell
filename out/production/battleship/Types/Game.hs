@@ -1,14 +1,17 @@
 module Types.Game where
 
+import Servant.API
 --координата, хз зачем, но пусть будет
 type Coordinate = (Int, Int)
 --для того, чтобы показать что это
-data Block = Water | ShipPart | Swell | Hit | Miss deriving (Show, Eq)
+data Block = Water | ShipPart  | Hit | Miss deriving (Show, Eq)
 --тип корабля для красоты
-data ShipType = Destroyer | Submarine | Cruiser | Battleship | Carrier deriving (Show,Eq)
+--data ShipType = Destroyer | Submarine | Cruiser | Battleship | Carrier deriving (Show,Eq)
 
 --тип корабля и сколько клеток занимает
-data Ship = Ship{occupy::[Coordinate], shipType :: ShipType} deriving (Show, Eq)
+--data Ship = Ship{occupy::[Coordinate], shipType :: ShipType} deriving (Show, Eq)
+
+data Ship = Ship{occupy::[Coordinate]} deriving (Show, Eq)
 --поле
 data Board = Board {rows :: [[Block]]} deriving (Show)
 --игрок с именем, кораблями, выстрелями и полем
@@ -19,25 +22,29 @@ data GameState = GameState{currentPlayer:: Int, player1 :: Player, player2 :: Pl
 
 data Game = Game {board1 :: Board, board2 :: Board}
 
+
+----------------------------Функции---------------------------------------------------------
+
 --конец игры
 gameOver :: Player -> Player->Bool
 gameOver p1 p2 = hasLost p1 || hasLost p2
 
---проверяем, когда проиграл - если кораблей нет
-hasLost :: Player->Bool
+--проверяем, когда проиграл - если кораблей нет (мне кажется, лучше взять поле у игрока и есть ли там
+--shipPart или нет
+hasLost :: Player -> Bool
 hasLost (Player name ships _ _) = ships == []
 
 --пустое поле, просто везде вода
 emptyBoard :: Board
 emptyBoard = Board (replicate 10 (replicate 10 Water))
 
---размеры корабля
-shipSize :: ShipType -> Int
-shipSize Destroyer = 1
-shipSize Submarine = 2
-shipSize Cruiser = 3
-shipSize Battleship = 4
-shipSize Carrier = 5
+--размеры корабля, не знаю, пока не нужно
+--shipSize :: ShipType -> Int
+--shipSize Destroyer = 1
+--shipSize Submarine = 2
+--shipSize Cruiser = 3
+--shipSize Battleship = 4
+--shipSize Carrier = 5
 
 --выстрел по координате
 shoot :: Board -> Coordinate -> Board
@@ -51,9 +58,9 @@ shoot b (x,y) = setBlock b (x,y)(shoot'' (getBlock b (x,y)))
 addBlocks:: Board -> [Coordinate] -> Block -> Board
 addBlocks board [] _ = board
 addBlocks board (x:xs) block | isValid x = addBlocks(setBlock board x block) xs block
-                             | otherwise = addBlocks board x block
+                             | otherwise = addBlocks board [x] block
 --тип блока
-getBlock :: Block -> Coordinate -> Block
+getBlock :: Board -> Coordinate -> Block
 getBlock (Board b) (x,y) = (b !! y) !! x
 
 --задает блок
@@ -85,7 +92,7 @@ listHits b = listCoordsOfBlocks b Hit
 listUnexplored :: Board -> [Coordinate]
 listUnexplored b = listCoordsOfBlocks b Water
         ++ listCoordsOfBlocks b ShipPart
-        ++ listCoordsOfBlocks b Swell
+
 
 --проверить валидность координат
 isValid :: Coordinate -> Bool
@@ -105,12 +112,61 @@ listCoordsOfBlocks (Board board) = listCoor' 0 board
 listNeighbours :: Board -> Coordinate -> [(Coordinate, Block)]
 listNeighbours b (x,y) = getBlockIfValid b (x+1, y)
                        ++ getBlockIfValid b (x-1, y)
-                       ++ getBlockifValid b (x, y+1)
+                       ++ getBlockIfValid b (x, y+1)
                        ++ getBlockIfValid b (x, y-1)
 --валидный блок
 getBlockIfValid :: Board -> Coordinate -> [(Coordinate, Block)]
 getBlockIfValid b (x,y) | isValid (x,y) = [((x,y), getBlock b (x,y))]
                         | otherwise = []
 
+readShips :: [Int] -> [Ship] -> IO [Ship]
+readShips (x:xs) ships = do
+                    boatString <- getLine
+                    -- Read and parse ship
+                    let newShip = Ship (Prelude.map read $ splitOn ';' boatString :: [Coordinate])
+                    -- In case of overlap, retry
+                    if or (Prelude.map (overlaps newShip) ships)
+                    then do
+                        putStrLn "Корабли пересекаются."
+                        moreBoats <- readShips (x:xs) ships
+                        return $ moreBoats
+                    else do
+                        -- Check for ship validity
+                        if not $ isValidShip newShip
+                        then do
+                            putStrLn "Можно располагать корабли только по вертикали и горизонтали."
+                            moreBoats <- readShips (x:xs) ships
+                            return $ moreBoats
+                        else do
+                            moreBoats <- readShips xs (ships ++ [newShip])
+                            return $ [newShip] ++ moreBoats
+readShips [] _ = do return []
 
+isIn :: Eq a=> [a]->a->Bool
+isIn [] a = False
+isIn (x:xs) a = if (x == a) then True else isIn xs a
+
+splitOn :: Char -> String -> [String]
+splitOn (c) (s) =  case dropWhile (== c) s of
+                "" -> []
+                s' -> w : splitOn c s''
+                      where (w, s'') =
+                             break (== c) s'
+
+--проверка на то, чтобы координаты не совпадали
+overlaps :: Ship -> Ship -> Bool
+overlaps (Ship c1) (Ship c2) = or (Prelude.map (isIn c1) c2)
+
+
+--у нас есть корабли, а блоков, которые их обозначают нет - не порядок
+addShip :: Board -> Ship -> Board
+addShip b (Ship occupied) = addBlocks b shipPositions ShipPart
+    where shipPositions = occupied
+
+--проверка на то, валидный ли корабль
+isValidShip :: Ship -> Bool
+isValidShip (Ship ((x1,y1):(x2,y2):xs)) =
+    let distance = (abs $ x1 - x2) + (abs $ y1 - y2)
+    in and [(distance <= 1), (isValidShip $ Ship ((x2,y2):xs))]
+isValidShip (Ship [(x1, y1)]) = True
 
